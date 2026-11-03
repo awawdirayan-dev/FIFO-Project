@@ -91,7 +91,7 @@ initial begin
 
     //check output test 2
     @(negedge clk);
-    if (full)
+    if (full && !empty)
         $display("TEST PASSED: FIFO is full");
     else
         $display("TEST FAILED: FIFO is not full");
@@ -102,10 +102,22 @@ initial begin
     wr_en = 1;
     rd_en = 0;
     @(negedge clk);
+    wr_en = 0;
     if (full && !empty)
         $display("TEST PASSED: Over flow protection");
     else
         $display("TEST FAILED: Over flow protection");
+    
+
+    //checking old element is still there, test 4
+    @(negedge clk);
+    for (int i = 0; i < FIFO_DEPTH; i++) begin
+        if (dut.mem[i] !== i + 1) begin
+            $display("TEST FAILED: mem[%0d] = %0d", i, dut.mem[i]);
+            $finish;
+        end
+    end
+    $display("TEST PASSED: Old elements are still there");
     $finish;
 
 end
