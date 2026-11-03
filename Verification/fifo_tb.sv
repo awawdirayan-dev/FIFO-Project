@@ -51,32 +51,26 @@ end
 // Stimulus
 initial begin
 
-    // Wait until reset is completed
     wait (rst == 0);
-
-
-    // Write operation, test 1
     @(negedge clk);
     din = 25;
     wr_en = 1;
     @(negedge clk);
     wr_en = 0;
-
-    
-    // Read operation
     @(negedge clk);
     rd_en = 1;
     @(negedge clk);
     rd_en = 0;
-
-
-     // Check output test 1
     @(negedge clk);
     if (dout == 25)
         $display("TEST PASSED: dout = %0d", dout);
     else
         $display("TEST FAILED: dout = %0d", dout);
 
+    @(negedge clk);
+    rst = 1;
+    repeat (2) @(negedge clk);
+    rst = 0;
 
 
     //16 Writes operation filling the FIFO, test 2
@@ -119,6 +113,10 @@ initial begin
     end
     $display("TEST PASSED: Old elements are still there");
 
+    @(negedge clk);
+    rst = 1;
+    repeat (2) @(negedge clk);
+    rst = 0;
 
     //Underflow protection, test 5
     if (empty !== 1'b1) begin
@@ -130,12 +128,31 @@ initial begin
     rd_en = 1;
     @(negedge clk);
     rd_en = 0;
-    if (empty === 1'b1 && full === 1'b0) begin
+    if (empty === 1'b1 && full === 1'b0 && dut.count === 5'd0) begin
         $display("TEST PASSED: Underflow protection");
     end
     else begin
         $display("TEST FAILED: Underflow protection");
     end
+
+    // Test 6: Simultaneous Read and Write
+    @(negedge clk);
+    din = 10;
+    wr_en = 1;
+    @(negedge clk);
+    din = 20;
+    @(negedge clk);
+    wr_en = 0;
+    rd_en = 1;
+    wr_en = 1;
+    din = 30;
+    @(negedge clk);
+    rd_en = 0;
+    wr_en = 0;
+    if (dout === 8'd10 && empty === 1'b0 && full === 1'b0 && dut.count === 5'd2)
+        $display("TEST PASSED: Simultaneous Read and Write");
+    else
+        $display("TEST FAILED: Simultaneous Read and Write");
     $finish;
 
 end
