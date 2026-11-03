@@ -3,6 +3,7 @@ module fifo_tb;
 
     parameter DATA_WIDTH = 8;
     parameter FIFO_DEPTH = 16;
+    
 
     // Testbench signals
     logic clk;
@@ -13,6 +14,11 @@ module fifo_tb;
     logic [DATA_WIDTH-1:0] dout;
     logic full;
     logic empty;
+
+    logic [DATA_WIDTH-1:0] reference_queue[$];
+    logic model_read_accept;
+    logic model_write_accept;
+    logic [DATA_WIDTH-1:0] expected_dout;
 
 
 // Clock generation
@@ -36,6 +42,56 @@ fifo #(
         .full(full),
         .empty(empty)
     );
+
+    always @(posedge clk) begin
+
+    if (rst) begin
+        reference_queue.delete();
+    end
+
+    else begin
+
+        model_read_accept = rd_en && (reference_queue.size() > 0);
+
+        model_write_accept = wr_en &&
+                             ((reference_queue.size() < FIFO_DEPTH) ||
+                              model_read_accept);
+
+        if (model_read_accept)
+            expected_dout = reference_queue.pop_front();
+
+        if (model_write_accept)
+            reference_queue.push_back(din);
+
+        #1;
+
+        if (model_read_accept) begin
+            if (dout !== expected_dout) begin
+                $display("SCOREBOARD FAILED: Expected %0d, Got %0d",
+                         expected_dout, dout);
+                $finish;
+            end
+        end
+
+        if (dut.count !== reference_queue.size()) begin
+            $display("SCOREBOARD FAILED: Count mismatch");
+            $display("Expected count = %0d, Actual count = %0d",
+                     reference_queue.size(), dut.count);
+            $finish;
+        end
+
+        if (full !== (reference_queue.size() == FIFO_DEPTH)) begin
+            $display("SCOREBOARD FAILED: Full flag mismatch");
+            $finish;
+        end
+
+        if (empty !== (reference_queue.size() == 0)) begin
+            $display("SCOREBOARD FAILED: Empty flag mismatch");
+            $finish;
+        end
+
+    end
+end
 
 // Reset Sequence
 initial begin
@@ -153,18 +209,24 @@ initial begin
         $display("TEST PASSED: Simultaneous Read and Write");
     else
         $display("TEST FAILED: Simultaneous Read and Write");
+
+
+
+
+    // pointer location, test 7  
+    @(negedge clk);
+    rst = 1;
+    wr_en = 0;
+    rd_en = 0;
+    repeat (2) @(negedge clk);
+    rst = 0;
     for (int i = 1; i <= FIFO_DEPTH; i++) begin
     @(negedge clk);
     din = i;
     wr_en = 1;
 end
-
-    @(negedge clk);
-    rst = 1;
-    repeat (2) @(negedge clk);
-    rst = 0;
-
-    // pointer location, test 7  
+@(negedge clk);
+wr_en = 0;
     @(negedge clk);
     wr_en = 0;
     if (dut.wr_ptr === 0)
@@ -212,10 +274,7 @@ end
     @(negedge clk);
     rd_en = 0;
     wr_en = 0;
-    if (dout === 8'd1 &&
-        dut.count === 5'd16 &&
-        full === 1'b1 &&
-        empty === 1'b0)
+    if (dout === 8'd1 && dut.count === 5'd16 && full === 1'b1 && empty === 1'b0)
         $display("TEST PASSED: Simultaneous Read/Write When Full");
     else begin
         $display("TEST FAILED: Full FIFO simultaneous operation");
