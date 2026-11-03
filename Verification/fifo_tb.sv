@@ -95,9 +95,18 @@ initial begin
         $display("TEST PASSED: FIFO is full");
     else
         $display("TEST FAILED: FIFO is not full");
+    
+    //checking enable writing when full, test 3
+    @(negedge clk);
+    din = 100;
+    wr_en = 1;
+    rd_en = 0;
+    @(negedge clk);
+    if (full && !empty)
+        $display("TEST PASSED: Over flow protection");
+    else
+        $display("TEST FAILED: Over flow protection");
     $finish;
-
-        
 
 end
 
