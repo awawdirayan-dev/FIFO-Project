@@ -118,6 +118,24 @@ initial begin
         end
     end
     $display("TEST PASSED: Old elements are still there");
+
+
+    //Underflow protection, test 5
+    if (empty !== 1'b1) begin
+        $display("TEST FAILED: FIFO is not empty");
+        $finish;
+    end
+    @(negedge clk);
+    wr_en = 0;
+    rd_en = 1;
+    @(negedge clk);
+    rd_en = 0;
+    if (empty === 1'b1 && full === 1'b0) begin
+        $display("TEST PASSED: Underflow protection");
+    end
+    else begin
+        $display("TEST FAILED: Underflow protection");
+    end
     $finish;
 
 end
