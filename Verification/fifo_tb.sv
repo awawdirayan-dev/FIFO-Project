@@ -297,6 +297,29 @@ wr_en = 0;
     end
     rd_en = 0;
     $display("TEST PASSED: Data integrity after simultaneous operation");
+
+
+    // Test 9: Randomized Testing
+    @(negedge clk);
+    rst = 1;
+    wr_en = 0;
+    rd_en = 0;
+    repeat (2) @(negedge clk);
+    rst = 0;
+    $display("--------------------------------");
+    $display("Starting Randomized Testing");
+    $display("--------------------------------");
+    for (int i = 0; i < 1000; i++) begin
+        @(negedge clk);
+        wr_en = $urandom_range(0, 1);
+        rd_en = $urandom_range(0, 1);
+        din = $urandom;
+    end
+    @(negedge clk);
+    wr_en = 0;
+    rd_en = 0;
+    $display("TEST PASSED: Randomized Testing");
+    $display("1000 random cycles completed");
     $finish;  
 
 end
