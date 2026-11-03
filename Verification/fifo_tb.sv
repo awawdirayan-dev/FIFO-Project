@@ -153,7 +153,92 @@ initial begin
         $display("TEST PASSED: Simultaneous Read and Write");
     else
         $display("TEST FAILED: Simultaneous Read and Write");
-    $finish;
+    for (int i = 1; i <= FIFO_DEPTH; i++) begin
+    @(negedge clk);
+    din = i;
+    wr_en = 1;
+end
+
+    @(negedge clk);
+    rst = 1;
+    repeat (2) @(negedge clk);
+    rst = 0;
+
+    // pointer location, test 7  
+    @(negedge clk);
+    wr_en = 0;
+    if (dut.wr_ptr === 0)
+        $display("TEST PASSED: Write pointer wrapped around");
+    else
+        $display("TEST FAILED: wr_ptr = %0d", dut.wr_ptr);
+    @(negedge clk);
+    rd_en = 1;
+    for (int i = 1; i <= FIFO_DEPTH; i++) begin
+        @(negedge clk);
+
+        if (dout !== i) begin
+            $display("TEST FAILED: Expected %0d, Got %0d", i, dout);
+            $finish;
+        end
+    end
+    rd_en = 0;
+    if (dut.rd_ptr === 0 && empty === 1'b1)
+        $display("TEST PASSED: Read pointer wrapped around");
+    else
+        $display("TEST FAILED: rd_ptr = %0d", dut.rd_ptr);  
+
+    @(negedge clk);
+    rst = 1;
+    repeat (2) @(negedge clk);
+    rst = 0;
+
+
+    //read write when full, test 8
+    for (int i = 1; i <= FIFO_DEPTH; i++) begin
+        @(negedge clk);
+        din = i;
+        wr_en = 1;
+    end
+    @(negedge clk);
+    wr_en = 0;
+    if (full !== 1'b1) begin
+        $display("TEST FAILED: FIFO is not full");
+        $finish;
+    end
+    @(negedge clk);
+    rd_en = 1;
+    wr_en = 1;
+    din = 99;
+    @(negedge clk);
+    rd_en = 0;
+    wr_en = 0;
+    if (dout === 8'd1 &&
+        dut.count === 5'd16 &&
+        full === 1'b1 &&
+        empty === 1'b0)
+        $display("TEST PASSED: Simultaneous Read/Write When Full");
+    else begin
+        $display("TEST FAILED: Full FIFO simultaneous operation");
+        $display("dout = %0d, count = %0d", dout, dut.count);
+        $finish;
+    end
+    @(negedge clk);
+    rd_en = 1;
+    for (int i = 2; i <= FIFO_DEPTH; i++) begin
+     @(negedge clk);
+     if (dout !== i) begin
+          $display("TEST FAILED: Expected %0d, Got %0d", i, dout);
+          $finish;
+        end
+    end
+    @(negedge clk);
+    if (dout !== 8'd99) begin
+     $display("TEST FAILED: Expected 99, Got %0d", dout);
+        $finish;
+    end
+    rd_en = 0;
+    $display("TEST PASSED: Data integrity after simultaneous operation");
+    $finish;  
 
 end
 
